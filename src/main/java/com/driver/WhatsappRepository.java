@@ -14,6 +14,8 @@ public class WhatsappRepository {
     private HashMap<Message, User> senderMap;
     private HashMap<Group, User> adminMap;
     private HashSet<String> userMobile;
+    private HashMap<Integer,String> messages;
+    HashSet<User> userDb;
     private int customGroupCount;
     private int messageId;
 
@@ -23,7 +25,89 @@ public class WhatsappRepository {
         this.senderMap = new HashMap<Message, User>();
         this.adminMap = new HashMap<Group, User>();
         this.userMobile = new HashSet<>();
+        this.messages = new HashMap<>();
+        this.userDb = new HashSet<>();
         this.customGroupCount = 0;
         this.messageId = 0;
+    }
+    public String createUser(String name, String mobile){
+        if (userMobile.contains(mobile)){
+            return null;
+        }
+        User user = new User(name,mobile);
+        userMobile.add(mobile);
+        userDb.add(user);
+        return "Success";
+    }
+    public Group createGroup(List<User> users){
+        if (users.size() < 2){
+            return null;
+        }
+        if (users.size()==2){
+            Group group = new Group(users.get(1).getName(),2);
+            groupUserMap.put(group,users);
+            adminMap.put(group,users.get(0));
+            return group;
+        }
+        customGroupCount++;
+        Group group = new Group("Group "+customGroupCount,users.size());
+        groupUserMap.put(group,users);
+        adminMap.put(group,users.get(0));
+        return group;
+    }
+    public int createMessage(String content){
+        messageId++;
+        messages.put(messageId,content);
+        return messageId;
+    }
+    public int sendMessage(Message message, User sender, Group group){
+        if (!groupUserMap.containsKey(group)){
+            return -1;
+        }
+        List<User> users = groupUserMap.get(group);
+        for (User user : users){
+            if (sender.equals(user)){
+                if (groupMessageMap.containsKey(group)){
+                    List<Message> messageList = groupMessageMap.get(group);
+                    messageList.add(message);
+                    groupMessageMap.put(group,messageList);
+                    messageId++;
+                    messages.put(messageId,message.getContent());
+                    return messageList.size();
+                }else{
+                    List<Message> messageList = new ArrayList<>();
+                    messageList.add(message);
+                    groupMessageMap.put(group,messageList);
+                    messageId++;
+                    messages.put(messageId,message.getContent());
+                    return messageList.size();
+                }
+            }
+        }
+        return 0;
+    }
+    public String changeAdmin(User approver, User user, Group group){
+        if (!groupUserMap.containsKey(group)){
+            return "Group not exists";
+        }
+        if (!adminMap.get(group).equals(approver)){
+            return "not an admin";
+        }
+        for (User users : groupUserMap.get(group)){
+            if (users.equals(user)){
+                adminMap.put(group,user);
+                return "SUCCESS";
+            }
+        }
+        return "not a user";
+    }
+    public int removeUser(User user){
+       return -1;
+    }
+    public String findMessage(Date start, Date end, int K){
+        if (messages.size() < K){
+            return null;
+        }
+        return messages.get(K);
     }
 }
