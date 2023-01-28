@@ -14,10 +14,10 @@ public class WhatsappRepository {
     private HashMap<Message, User> senderMap;
     private HashMap<Group, User> adminMap;
     private HashSet<String> userMobile;
-    private HashMap<Integer,String> messages;
-    HashSet<User> userDb;
-    private int customGroupCount;
-    private int messageId;
+    int customGroupCount=1;
+    int messageId=1;
+
+    HashMap<String, User> user=new HashMap<>();   // map having key-->mobile number ,, value-->user  --->create user
 
     public WhatsappRepository(){
         this.groupMessageMap = new HashMap<Group, List<Message>>();
@@ -25,110 +25,104 @@ public class WhatsappRepository {
         this.senderMap = new HashMap<Message, User>();
         this.adminMap = new HashMap<Group, User>();
         this.userMobile = new HashSet<>();
-        this.messages = new HashMap<>();
-        this.userDb = new HashSet<>();
-        this.customGroupCount = 0;
-        this.messageId = 0;
+//        this.customGroupCount = 0;
+//        this.messageId = 0;
     }
-    public String createUser(String name, String mobile){
-        if (userMobile.contains(mobile)){
-            return null;
+
+    public String createUser(String name, String mobile)
+    {
+        //If the mobile number exists in database, throw "User already exists" exception
+        //Otherwise, create the user and return "SUCCESS"
+        if(user.containsKey(mobile))
+        {
+            return "User already exists";
         }
-        User user = new User(name,mobile);
+
         userMobile.add(mobile);
-        userDb.add(user);
-        return "Success";
+        User newUser=new User(name, mobile);
+        user.put(mobile, newUser);
+        return "SUCCESS";
     }
-    public Group createGroup(List<User> users){
-        if (users.size() < 2){
-            return null;
+
+    public Group createGroup(List<User> users)
+    {
+        User admin=users.get(0);
+        String groupName="";
+        if(users.size()==2)
+        {
+            groupName=users.get(1).getName();
         }
-        if (users.size()==2){
-            Group group = new Group(users.get(1).getName(),2);
-            groupUserMap.put(group,users);
-            adminMap.put(group,users.get(0));
-            return group;
+        else
+        {
+            groupName="Group "+customGroupCount;
+            customGroupCount++;
         }
-        customGroupCount++;
-        Group group = new Group("Group "+customGroupCount,users.size());
-        groupUserMap.put(group,users);
-        adminMap.put(group,users.get(0));
-        return group;
+
+        Group newGroup=new Group(groupName, users.size());
+        groupUserMap.put(newGroup, users);
+        adminMap.put(newGroup, admin);
+        return newGroup;
     }
-    public int createMessage(String content){
+
+    public int createMessage(String content)
+    {
+        Message message=new Message(messageId, content);
         messageId++;
-        messages.put(messageId,content);
-        return messageId;
+        return message.getId();
     }
-    public int sendMessage(Message message, User sender, Group group){
-        if (!groupUserMap.containsKey(group)){
+
+    public int sendMessage(Message message, User sender, Group group)
+    {
+        if(!adminMap.containsKey(group))
+        {
             return -1;
         }
-        List<User> users = groupUserMap.get(group);
-        for (User user : users){
-            if (sender.equals(user)){
-                if (groupMessageMap.containsKey(group)){
-                    List<Message> messageList = groupMessageMap.get(group);
-                    messageList.add(message);
-                    groupMessageMap.put(group,messageList);
-                    messageId++;
-                    messages.put(messageId,message.getContent());
-                    return messageList.size();
-                }else{
-                    List<Message> messageList = new ArrayList<>();
-                    messageList.add(message);
-                    groupMessageMap.put(group,messageList);
-                    messageId++;
-                    messages.put(messageId,message.getContent());
-                    return messageList.size();
-                }
-            }
+
+        List<User> members=new ArrayList<>();
+        members=groupUserMap.get(group);
+        if(!members.contains(sender))
+        {
+            return -2;
         }
-        return -2;
+
+        senderMap.put(message, sender);
+        return message.getId();
     }
-    public String changeAdmin(User approver, User user, Group group){
-        if (!groupUserMap.containsKey(group)){
-            return "Group not exists";
+
+    public String changeAdmin(User approver, User user, Group group)
+    {
+        //Throw "Group does not exist" if the mentioned group does not exist
+        //Throw "Approver does not have rights" if the approver is not the current admin of the group
+        //Throw "User is not a participant" if the user is not a part of the group
+        //Change the admin of the group to "user" and return "SUCCESS". Note that at one time there is only one admin and the admin rights are transferred from approver to user.
+
+        //private HashMap<Group, User> adminMap;
+        if(!adminMap.containsKey(group))
+        {
+            return "Group does not exist";
         }
-        if (!adminMap.get(group).equals(approver)){
-            return "not an admin";
+
+        User admin=adminMap.get(group);
+        String adminName=admin.getName();
+        String adminMobile=admin.getMobile();
+
+        if(!adminName.equals(approver.getName()) && !adminMobile.equals(approver.getMobile()))
+        {
+            return "Approver does not have rights";
         }
-        for (User users : groupUserMap.get(group)){
-            if (users.equals(user)){
-                adminMap.put(group,user);
-                return "SUCCESS";
-            }
+
+        //private HashMap<Group, List<User>> groupUserMap;
+        List<User> participants=new ArrayList<>();
+        participants=groupUserMap.get(group);
+        if(!participants.contains(user))
+        {
+            return "User is not a participant";
         }
-        return "not a user";
-    }
-    public int removeUser(User user){
-        for (Group group : groupUserMap.keySet()){
-            for (User users : groupUserMap.get(group)){
-                if (users.equals(user)){
-                    for (User admin : adminMap.values()){
-                        if (admin.equals(user)){
-                            return -2;
-                        }
-                    }
-                    for (Message message : senderMap.keySet()){
-                        if (senderMap.get(message).equals(user)){
-                            senderMap.remove(message);
-                            groupMessageMap.get(group).remove(message);
-                            userDb.remove(user);
-                        }
-                        groupUserMap.get(group).remove(user);
-                        group.setNumberOfParticipants(group.getNumberOfParticipants()-1);
-                        return messageId + groupMessageMap.get(group).size()+groupUserMap.get(group).size();
-                    }
-                }
-            }
-        }
-        return -1;
-    }
-    public String findMessage(Date start, Date end, int K){
-        if (messages.size() < K){
-            return null;
-        }
-        return messages.get(K);
+
+        // Since all edge cases have passed, so we can change admin to
+        //private HashMap<Group, User> adminMap
+        adminMap.get(group).setName(user.getName());
+        adminMap.get(group).setMobile(user.getMobile());
+        return "SUCCESS";
     }
 }
