@@ -60,7 +60,7 @@ public class WhatsappController {
         int response = whatsappService.sendMessage(message, sender, group);
         if (response == -1){
             throw new Exception("Group does not exist");
-        } else if (response == 0) {
+        } else if (response == -2) {
             throw new Exception("You are not allowed to send message");
         }
         return response;

@@ -84,7 +84,7 @@ public class WhatsappRepository {
                 }
             }
         }
-        return 0;
+        return -2;
     }
     public String changeAdmin(User approver, User user, Group group){
         if (!groupUserMap.containsKey(group)){
@@ -102,7 +102,28 @@ public class WhatsappRepository {
         return "not a user";
     }
     public int removeUser(User user){
-       return -1;
+        for (Group group : groupUserMap.keySet()){
+            for (User users : groupUserMap.get(group)){
+                if (users.equals(user)){
+                    for (User admin : adminMap.values()){
+                        if (admin.equals(user)){
+                            return -2;
+                        }
+                    }
+                    for (Message message : senderMap.keySet()){
+                        if (senderMap.get(message).equals(user)){
+                            senderMap.remove(message);
+                            groupMessageMap.get(group).remove(message);
+                            userDb.remove(user);
+                        }
+                        groupUserMap.get(group).remove(user);
+                        group.setNumberOfParticipants(group.getNumberOfParticipants()-1);
+                        return messageId + groupMessageMap.get(group).size()+groupUserMap.get(group).size();
+                    }
+                }
+            }
+        }
+        return -1;
     }
     public String findMessage(Date start, Date end, int K){
         if (messages.size() < K){
